@@ -29,13 +29,13 @@ Firebase 网页应用配置会出现在浏览器端代码中；这类配置不�
 
 ## 本地预览
 
-直接在浏览器中打开根目录的 `index.html)，或使用任何静态文件服务器预览。
+直接在浏览器中打开根目录的 `index.html`，或使用任何静态文件服务器预览。
 
 ## 使用 GitHub Pages 发布
 
 1. 打开仓库的 **Settings → Pages**。
 2. 在 **Build and deployment** 中选择 **Deploy from a branch**。
-3. 选择分支 `main) 和目录 `/(root))。
+3. 选择分支 `main` 和目录 `/(root)`。
 4. 保存设置，等待 GitHub Pages 部署完成。
 
 发布后的网站地址：
