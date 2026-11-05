@@ -1,6 +1,6 @@
 # weiqi_online 排行榜
 
-[繁體中文](README.zh-Hant.md) · [简体中文](README.zh-CN.md) · [English (UK)](README.en-GB.md) · [English (US)](README.en-US.md)
+[繁體中文](README.md) · [简体中文](README.zh-CN.md) · [English (UK)](README.en-GB.md) · [English (US)](README.en-US.md)
 
 这是 [weiqi_online](https://github.com/s230127-lab/weiqi_online) 围棋游戏的独立排行榜网站。网站**只显示总排行榜**，不包含围棋棋盘、对局、AI、登录或游戏管理功能。
 
