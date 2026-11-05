@@ -1,6 +1,6 @@
 # weiqi_online Rankings
 
-[繁體中文](README.zh-Hant.md) · [简体中文](README.zh-CN.md) · [English (UK)](README.en-GB.md) · [English (US)](README.en-US.md)
+[繁體中文](README.md) · [简体中文](README.zh-CN.md) · [English (UK)](README.en-GB.md) · [English (US)](README.en-US.md)
 
 This is a standalone rankings website for the [weiqi_online](https://github.com/s230127-lab/weiqi_online) Go game. It **shows the overall leaderboard only**. It does not include a Go board, gameplay, AI, sign-in, or game-management features.
 
