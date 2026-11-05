@@ -140,13 +140,7 @@
     <section class="board-card" aria-labelledby="boardTitle">
       <div class="toolbar">
         <nav class="tabs" id="tabs" aria-label="排行榜類別">
-          <button class="tab active" type="button" data-board="overall">總排行榜</button>
-          <button class="tab" type="button" data-board="lv1">Lv 1</button>
-          <button class="tab" type="button" data-board="lv2">Lv 2</button>
-          <button class="tab" type="button" data-board="lv3">Lv 3</button>
-          <button class="tab" type="button" data-board="lv4">Lv 4</button>
-          <button class="tab" type="button" data-board="lv5">Lv 5</button>
-          <button class="tab" type="button" data-board="lv6">Lv 6</button>
+          <button class="tab active" type="button">總排行榜</button>
         </nav>
         <button class="refresh-button" id="refreshButton" type="button">重新整理</button>
       </div>
@@ -188,21 +182,15 @@
           title: "圍棋排行榜",
           subtitle: "玩家成績與各級最快紀錄",
           overall: "總排行榜",
-          level: "Lv {n}",
           refresh: "重新整理",
           updated: "更新時間：{time}",
           overallTitle: "總排行榜 · 前 10 名",
           overallDescription: "依積分排名，勝局 3 分、和局 1 分。",
-          levelTitle: "Lv {n} · 最快勝局 · 前 10 名",
-          levelDescription: "依完成勝局所用時間排序，時間越短排名越高。",
           rank: "排名",
           player: "玩家",
           points: "積分",
           results: "勝／敗／和",
-          bestTime: "最佳時間",
-          board: "棋盤",
           noOverall: "目前還沒有排名紀錄。",
-          noLevel: "此級別目前還沒有勝局紀錄。",
           loading: "正在載入排行榜",
           connecting: "正在連接排行榜資料。",
           error: "無法載入排行榜",
@@ -216,21 +204,15 @@
           title: "Go Rankings",
           subtitle: "Player standings and fastest wins by level",
           overall: "Overall",
-          level: "Lv {n}",
           refresh: "Refresh",
           updated: "Updated: {time}",
           overallTitle: "Overall Ranking · Top 10",
           overallDescription: "Ranked by points: 3 for a win and 1 for a draw.",
-          levelTitle: "Lv {n} · Fastest Wins · Top 10",
-          levelDescription: "Ranked by winning time. A shorter time earns a higher position.",
           rank: "Rank",
           player: "Player",
           points: "Points",
           results: "W / L / D",
-          bestTime: "Best time",
-          board: "Board",
           noOverall: "There are no ranking records yet.",
-          noLevel: "There are no winning records for this level yet.",
           loading: "Loading rankings",
           connecting: "Connecting to leaderboard data.",
           error: "Could not load rankings",
@@ -369,32 +351,6 @@
         });
       }
 
-      function renderLevel(snapshot) {
-        const entries = snapshot.docs.map((doc) => doc.data());
-        entries.sort((a, b) =>
-          (Number(a.bestTimeMs) || Infinity) - (Number(b.bestTimeMs) || Infinity) ||
-          String(a.displayName || "").localeCompare(String(b.displayName || ""))
-        );
-        const top = entries.slice(0, 10);
-        if (!top.length) {
-          setMessage(t("noLevel"), "", false);
-          return;
-        }
-        makeTable([t("rank"), t("player"), t("bestTime"), t("board")], top, (tr, entry) => {
-          const size = Number(entry.boardSize);
-          const board = document.createElement("td");
-          const badge = document.createElement("span");
-          badge.className = "board-size";
-          badge.textContent = Number.isFinite(size) ? size + " × " + size : "—";
-          board.appendChild(badge);
-          tr.append(
-            (() => { const td = document.createElement("td"); td.appendChild(playerCell(entry)); return td; })(),
-            cell(formatDuration(entry.bestTimeMs) + " " + t("seconds"), "metric points"),
-            board
-          );
-        });
-      }
-
       function updateLabels() {
         $("eyebrow").textContent = t("eyebrow");
         $("pageTitle").textContent = t("title");
@@ -403,20 +359,8 @@
         $("refreshButton").textContent = t("refresh");
         $("footerText").textContent = t("footer");
         document.documentElement.lang = language === "zh" ? "zh-Hant" : "en";
-        document.querySelectorAll(".tab").forEach((button) => {
-          const board = button.dataset.board;
-          button.textContent = board === "overall" ? t("overall") : t("level", {n: board.slice(2)});
-          button.classList.toggle("active", board === activeBoard);
-          button.setAttribute("aria-pressed", board === activeBoard ? "true" : "false");
-        });
-        if (activeBoard === "overall") {
-          $("boardTitle").textContent = t("overallTitle");
-          $("boardDescription").textContent = t("overallDescription");
-        } else {
-          const level = activeBoard.slice(2);
-          $("boardTitle").textContent = t("levelTitle", {n: level});
-          $("boardDescription").textContent = t("levelDescription");
-        }
+        $("boardTitle").textContent = t("overallTitle");
+        $("boardDescription").textContent = t("overallDescription");
       }
 
       async function loadBoard() {
@@ -426,20 +370,12 @@
         setMessage(t("loading"), t("connecting"), true);
         try {
           if (!db) throw new Error("Firestore is not initialised.");
-          let snapshot;
-          if (activeBoard === "overall") {
-            snapshot = await db.collection("leaderboard").orderBy("points", "desc").limit(100).get();
-          } else {
-            snapshot = await db.collection("levelLeaderboard")
-              .doc(activeBoard)
-              .collection("players")
-              .orderBy("bestTimeMs", "asc")
-              .limit(10)
-              .get();
-          }
+          const snapshot = await db.collection("leaderboard")
+            .orderBy("points", "desc")
+            .limit(100)
+            .get();
           if (currentRequest !== requestNumber) return;
-          if (activeBoard === "overall") renderOverall(snapshot);
-          else renderLevel(snapshot);
+          renderOverall(snapshot);
           $("updatedAt").textContent = t("updated", {
             time: new Intl.DateTimeFormat(language === "zh" ? "zh-TW" : "en-GB", {
               hour: "2-digit", minute: "2-digit", second: "2-digit"
@@ -467,13 +403,6 @@
           setMessage(t("error"), t("errorText"), false);
         }
       }
-
-      $("tabs").addEventListener("click", (event) => {
-        const button = event.target.closest("button[data-board]");
-        if (!button || button.dataset.board === activeBoard) return;
-        activeBoard = button.dataset.board;
-        loadBoard();
-      });
 
       $("refreshButton").addEventListener("click", loadBoard);
       $("languageButton").addEventListener("click", () => {
