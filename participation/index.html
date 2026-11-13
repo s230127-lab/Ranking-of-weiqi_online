@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#eceae4">
+  <meta name="description" content="圍棋參與完成狀態核對">
+  <title>圍棋參與完成確認</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg:#eceae4; --panel:#f8f6f0; --paper:#fffdf7; --ink:#242820;
+      --muted:#72766b; --line:#d8d3c7; --green:#315f50;
+      --green-soft:#e6efe9; --amber:#8b641e; --amber-soft:#f6eedb;
+      --red:#91483e; --red-soft:#f6e9e6; --shadow:0 20px 55px rgba(38,42,32,.09);
+    }
+    * { box-sizing:border-box; }
+    body {
+      margin:0; min-height:100vh; padding:24px 16px 40px;
+      background:radial-gradient(circle at 12% 0%,rgba(210,190,145,.2),transparent 28rem),var(--bg);
+      color:var(--ink);
+      font-family:"Noto Serif TC","Songti TC","PMingLiU","Noto Serif CJK TC","Songti SC",Georgia,serif;
+    }
+    button { font:inherit; cursor:pointer; }
+    button:disabled { cursor:wait; opacity:.62; }
+    .shell { width:min(100%,790px); margin:0 auto; }
+    header { display:flex; align-items:flex-start; justify-content:space-between; gap:18px; margin:18px 0 28px; }
+    .eyebrow { margin:0 0 10px; color:var(--green); font:800 .73rem/1.4 system-ui,sans-serif; letter-spacing:.17em; }
+    h1 { margin:0; font-size:clamp(2rem,6vw,3.2rem); line-height:1.12; letter-spacing:.025em; }
+    .subtitle { margin:12px 0 0; color:var(--muted); line-height:1.7; }
+    .mark { display:grid; place-items:center; width:56px; height:56px; flex:none; border:1px solid var(--line); border-radius:15px; background:var(--panel); color:var(--green); font-size:1.5rem; font-weight:800; box-shadow:var(--shadow); }
+    .card { margin:16px 0; padding:clamp(18px,4vw,27px); background:var(--paper); border:1px solid var(--line); border-radius:19px; box-shadow:var(--shadow); }
+    .account { display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; }
+    .account-copy { min-width:200px; flex:1; }
+    .section-kicker { margin:0 0 7px; color:var(--muted); font:800 .72rem system-ui,sans-serif; letter-spacing:.12em; }
+    h2 { margin:0; font-size:1.25rem; }
+    .account-email { margin:7px 0 0; color:var(--muted); font-size:.9rem; overflow-wrap:anywhere; }
+    .actions { display:flex; gap:8px; flex-wrap:wrap; }
+    .button { min-height:43px; padding:9px 16px; border:1px solid var(--line); border-radius:999px; background:var(--panel); color:var(--ink); font-weight:700; transition:transform .16s ease,border-color .16s ease; }
+    .button:hover:not(:disabled) { transform:translateY(-1px); border-color:#9eaa9e; }
+    .button.primary { background:var(--green); border-color:var(--green); color:white; }
+    .button.subtle { background:transparent; }
+    .status-list { display:grid; gap:12px; margin-top:19px; }
+    .status-row { display:grid; grid-template-columns:42px minmax(0,1fr) auto; align-items:center; gap:13px; padding:15px; background:var(--panel); border:1px solid var(--line); border-radius:13px; }
+    .status-icon { display:grid; place-items:center; width:39px; height:39px; border-radius:12px; background:#efeee8; color:var(--muted); font:800 1.05rem system-ui,sans-serif; }
+    .status-row h3 { margin:0; font-size:1rem; }
+    .status-row p { margin:5px 0 0; color:var(--muted); font-size:.84rem; line-height:1.5; }
+    .pill { display:inline-flex; align-items:center; justify-content:center; min-width:76px; padding:7px 10px; border-radius:999px; font:750 .76rem system-ui,sans-serif; white-space:nowrap; }
+    .pill.wait { background:#eeede7; color:#6d7068; }
+    .pill.done { background:var(--green-soft); color:var(--green); }
+    .pill.issue { background:var(--amber-soft); color:var(--amber); }
+    .pill.fail { background:var(--red-soft); color:var(--red); }
+    .final { display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; margin-top:19px; padding:17px 18px; border:1px solid var(--line); border-radius:13px; background:#f5f3ec; }
+    .final h3 { margin:0; font-size:1.03rem; }
+    .final p { margin:5px 0 0; color:var(--muted); font-size:.85rem; line-height:1.5; }
+    .help { margin-top:17px; padding-top:15px; border-top:1px solid var(--line); color:var(--muted); font-size:.83rem; line-height:1.7; }
+    .help strong { color:var(--ink); }
+    .message { min-height:1.5em; margin:12px 2px 0; color:var(--muted); font-size:.84rem; line-height:1.5; }
+    footer { margin:22px 0 0; text-align:center; color:#898d82; font-size:.76rem; line-height:1.6; }
+    a { color:var(--green); }
+    [hidden] { display:none !important; }
+    @media(max-width:540px) {
+      body { padding:12px 11px 30px; }
+      header { margin-top:12px; }
+      .mark { width:46px; height:46px; }
+      .status-row { grid-template-columns:38px minmax(0,1fr); }
+      .status-row .pill { grid-column:2; justify-self:start; }
+      .status-icon { width:36px; height:36px; }
+      .actions { width:100%; }
+      .actions .button { flex:1; }
+    }
+    @media(prefers-reduced-motion:reduce) { *,*::before,*::after { transition:none !important; animation:none !important; } }
+  </style>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div>
+        <p class="eyebrow">WEIQI ONLINE · 參與紀錄</p>
+        <h1>圍棋參與完成確認</h1>
+        <p class="subtitle">登入後核對遊戲紀錄及問卷提交狀態。兩項都完成，才會取得完成資格。</p>
+      </div>
+      <div class="mark" aria-hidden="true">圍</div>
+    </header>
+
+    <section class="card" aria-labelledby="accountTitle">
+      <div class="account">
+        <div class="account-copy">
+          <p class="section-kicker">玩家帳戶</p>
+          <h2 id="accountTitle">使用 Google 帳戶登入</h2>
+          <p class="account-email" id="accountEmail">登入後會顯示目前核對的帳戶。</p>
+        </div>
+        <div class="actions">
+          <button class="button primary" id="signInButton" type="button">Google 登入</button>
+          <button class="button subtle" id="signOutButton" type="button" hidden>登出</button>
+        </div>
+      </div>
+      <p class="message" id="pageMessage" role="status" aria-live="polite">請使用填寫問卷時的同一個 Google 帳戶登入。</p>
+    </section>
+
+    <section class="card" aria-labelledby="statusTitle">
+      <p class="section-kicker">完成狀態</p>
+      <h2 id="statusTitle">參與條件核對</h2>
+
+      <div class="status-list">
+        <article class="status-row">
+          <div class="status-icon" aria-hidden="true">棋</div>
+          <div>
+            <h3>完成至少一盤圍棋</h3>
+            <p id="gameDetail">登入後會讀取你的 Firebase 遊戲紀錄。</p>
+          </div>
+          <span class="pill wait" id="gameBadge">待核對</span>
+        </article>
+
+        <article class="status-row">
+          <div class="status-icon" aria-hidden="true">表</div>
+          <div>
+            <h3>提交 Google 問卷</h3>
+            <p id="formDetail">系統會以已驗證的 Google 電子郵件配對回應紀錄。</p>
+          </div>
+          <span class="pill wait" id="formBadge">待核對</span>
+        </article>
+      </div>
+
+      <div class="final">
+        <div>
+          <h3 id="finalTitle">尚未完成核對</h3>
+          <p id="finalDetail">登入後會自動檢查以上兩項條件。</p>
+        </div>
+        <span class="pill wait" id="finalBadge">未完成</span>
+      </div>
+
+      <div class="actions" style="margin-top:16px">
+        <button class="button primary" id="refreshButton" type="button" disabled>重新核對</button>
+        <a class="button" href="https://docs.google.com/forms/" target="_blank" rel="noopener noreferrer">開啟 Google 表單</a>
+      </div>
+
+      <div class="help">
+        <strong>核對方式</strong><br>
+        遊戲紀錄取自 weiqi_online 的 Firebase「leaderboard」資料；問卷只核對已驗證的電子郵件是否出現在回應試算表，不會顯示或下載你的問卷答案。
+      </div>
+    </section>
+
+    <footer>
+      圍棋參與紀錄系統 · 適用於電腦、平板及手機<br>
+      如剛完成遊戲或提交問卷，請按「重新核對」更新狀態。
+    </footer>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const FIREBASE_CONFIG = {
+        apiKey: "AIzaSyBOcBPN-D8S4-4lJ6LwzGcBV-N4CI60bdzI",
+        authDomain: "weiqi-online.firebaseapp.com",
+        projectId: "weiqi-online",
+        storageBucket: "weiqi-online.firebasestorage.app",
+        messagingSenderId: "950011884276",
+        appId: "1:950011884276:web:2241c6311e1ee79b1424a1",
+        measurementId: "G-J5J6K8H61M"
+      };
+
+      // Deploy participation/Code.gs as a Google Apps Script web app,
+      // then paste its /exec URL here.
+      const APPS_SCRIPT_URL = "PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE";
+
+      const $ = id => document.getElementById(id);
+      const gameBadge = $("gameBadge");
+      const formBadge = $("formBadge");
+      const finalBadge = $("finalBadge");
+      let auth = null;
+      let db = null;
+      let currentUser = null;
+      let checking = false;
+
+      function setBadge(element, label, state) {
+        element.textContent = label;
+        element.className = "pill " + state;
+      }
+
+      function setMessage(message) {
+        $("pageMessage").textContent = message;
+      }
+
+      function resetChecks() {
+        setBadge(gameBadge, "待核對", "wait");
+        setBadge(formBadge, "待核對", "wait");
+        setBadge(finalBadge, "未完成", "wait");
+        $("gameDetail").textContent = "登入後會讀取你的 Firebase 遊戲紀錄。";
+        $("formDetail").textContent = "系統會以已驗證的 Google 電子郵件配對回應紀錄。";
+        $("finalTitle").textContent = "尚未完成核對";
+        $("finalDetail").textContent = "登入後會自動檢查以上兩項條件。";
+      }
+
+      function setFinalState(gameDone, formDone) {
+        if (gameDone && formDone) {
+          $("finalTitle").textContent = "恭喜，兩項條件均已完成";
+          $("finalDetail").textContent = "你的圍棋參與紀錄已符合完成資格。";
+          setBadge(finalBadge, "已完成", "done");
+        } else {
+          $("finalTitle").textContent = "尚未符合完成資格";
+          const missing = [];
+          if (!gameDone) missing.push("完成至少一盤圍棋");
+          if (!formDone) missing.push("提交 Google 問卷");
+          $("finalDetail").textContent = "尚欠：" + missing.join("、") + "。";
+          setBadge(finalBadge, "未完成", "issue");
+        }
+      }
+
+      function checkFormWithAppsScript(idToken) {
+        return new Promise((resolve, reject) => {
+          if (!APPS_SCRIPT_URL.startsWith("https://script.google.com/macros/s/") ||
+              !APPS_SCRIPT_URL.endsWith("/exec")) {
+            reject(new Error("form_service_not_configured"));
+            return;
+          }
+
+          const script = document.createElement("script");
+          let finished = false;
+          const timeout = window.setTimeout(() => finish(new Error("form_check_timeout")), 18000);
+
+          function cleanup() {
+            window.clearTimeout(timeout);
+            script.remove();
+            try { delete window.weiqiFormCheck; } catch (_) { window.weiqiFormCheck = undefined; }
+          }
+
+          function finish(error, result) {
+            if (finished) return;
+            finished = true;
+            cleanup();
+            if (error) reject(error);
+            else resolve(result);
+          }
+
+          window.weiqiFormCheck = result => finish(null, result);
+          script.onerror = () => finish(new Error("form_service_unavailable"));
+
+          const url = new URL(APPS_SCRIPT_URL);
+          url.searchParams.set("token", idToken);
+          url.searchParams.set("callback", "weiqiFormCheck");
+          url.searchParams.set("_", String(Date.now()));
+          script.src = url.toString();
+          document.head.appendChild(script);
+        });
+      }
+
+      async function refreshStatus() {
+        if (!currentUser || checking) return;
+        checking = true;
+        $("refreshButton").disabled = true;
+        setMessage("正在核對 Firebase 遊戲紀錄及 Google 表單提交狀態…");
+        setBadge(gameBadge, "核對中", "wait");
+        setBadge(formBadge, "核對中", "wait");
+
+        let gameDone = false;
+        let formDone = false;
+
+        try {
+          const playerRef = db.collection("leaderboard").doc(currentUser.uid);
+          const playerSnapshot = await playerRef.get();
+          const playerData = playerSnapshot.exists ? playerSnapshot.data() : {};
+          const games = Math.max(0, Number(playerData.games || 0));
+          gameDone = Number.isFinite(games) && games >= 1;
+
+          $("gameDetail").textContent = "已記錄完成對局：" + games + " 盤。";
+          setBadge(gameBadge, gameDone ? "已完成" : "未完成", gameDone ? "done" : "issue");
+        } catch (error) {
+          console.error("Game record check failed:", error);
+          $("gameDetail").textContent = "無法讀取遊戲紀錄。請確認網路連線，稍後再試。";
+          setBadge(gameBadge, "讀取失敗", "fail");
+        }
+
+        try {
+          if (!currentUser.email || !currentUser.emailVerified) {
+            throw new Error("google_email_not_verified");
+          }
+          const idToken = await currentUser.getIdToken();
+          const result = await checkFormWithAppsScript(idToken);
+
+          if (!result || result.ok !== true) {
+            const code = result && result.error ? result.error : "unknown";
+            if (code === "email_column_missing") {
+              throw new Error("email_column_missing");
+            }
+            if (code === "spreadsheet_unavailable") {
+              throw new Error("spreadsheet_unavailable");
+            }
+            if (code === "auth_invalid") {
+              throw new Error("auth_invalid");
+            }
+            throw new Error("form_check_failed");
+          }
+
+          formDone = result.submitted === true;
+          $("formDetail").textContent = formDone
+            ? "已在回應試算表找到此 Google 帳戶的電子郵件。"
+            : "尚未找到此 Google 帳戶的提交紀錄。請確認使用同一個 Google 帳戶填表。";
+          setBadge(formBadge, formDone ? "已提交" : "未提交", formDone ? "done" : "issue");
+        } catch (error) {
+          console.error("Form response check failed:", error);
+          const messages = {
+            form_service_not_configured: "問卷核對服務尚未設定，請管理員完成 Apps Script 部署。",
+            form_service_unavailable: "無法連接問卷核對服務，請稍後再試。",
+            form_check_timeout: "問卷核對逾時，請稍後再試。",
+            email_column_missing: "試算表找不到電子郵件欄。請確認已啟用「收集電子郵件地址」，並檢查新回應是否包含電子郵件欄。",
+            spreadsheet_unavailable: "無法讀取回應試算表。請確認 Apps Script 部署帳戶有試算表檢視權限。",
+            auth_invalid: "登入驗證失效，請重新登入後再試。",
+            google_email_not_verified: "目前 Google 帳戶沒有可驗證的電子郵件地址。",
+            form_check_failed: "問卷核對失敗，請稍後再試。"
+          };
+          $("formDetail").textContent = messages[error.message] || messages.form_check_failed;
+          setBadge(formBadge, "無法核對", "fail");
+        }
+
+        setFinalState(gameDone, formDone);
+        setMessage("核對完成。狀態以目前 Firebase 及表單回應資料為準。");
+        checking = false;
+        $("refreshButton").disabled = false;
+      }
+
+      async function signIn() {
+        if (!auth) {
+          setMessage("Firebase 尚未載入，請重新整理頁面。");
+          return;
+        }
+        $("signInButton").disabled = true;
+        try {
+          const provider = new firebase.auth.GoogleAuthProvider();
+          provider.setCustomParameters({ prompt: "select_account" });
+          await auth.signInWithPopup(provider);
+        } catch (error) {
+          console.error("Google sign-in failed:", error);
+          const code = error && error.code ? error.code : "unknown";
+          const hint = code === "auth/unauthorized-domain"
+            ? "此網站網域尚未加入 Firebase Authentication 的授權網域。"
+            : code === "auth/popup-blocked"
+              ? "瀏覽器封鎖了登入視窗，請允許此網站開啟彈出式視窗。"
+              : "Google 登入失敗，請再試一次。";
+          setMessage(hint + "（" + code + "）");
+        } finally {
+          $("signInButton").disabled = false;
+        }
+      }
+
+      async function signOut() {
+        if (!auth) return;
+        await auth.signOut();
+      }
+
+      function handleAuthState(user) {
+        currentUser = user || null;
+        $("signInButton").hidden = !!user;
+        $("signOutButton").hidden = !user;
+        $("refreshButton").disabled = !user;
+
+        if (!user) {
+          $("accountTitle").textContent = "使用 Google 帳戶登入";
+          $("accountEmail").textContent = "登入後會顯示目前核對的帳戶。";
+          resetChecks();
+          setMessage("請使用填寫問卷時的同一個 Google 帳戶登入。");
+          return;
+        }
+
+        $("accountTitle").textContent = user.displayName || "已登入";
+        $("accountEmail").textContent = user.email || "此帳戶沒有可顯示的電子郵件地址。";
+        refreshStatus();
+      }
+
+      try {
+        if (!window.firebase) throw new Error("Firebase SDK 載入失敗。");
+        if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+        auth = firebase.auth();
+        db = firebase.firestore();
+        $("signInButton").addEventListener("click", signIn);
+        $("signOutButton").addEventListener("click", signOut);
+        $("refreshButton").addEventListener("click", refreshStatus);
+        auth.onAuthStateChanged(handleAuthState);
+      } catch (error) {
+        console.error("Initialization failed:", error);
+        setMessage("網站初始化失敗：" + (error.message || String(error)));
+        $("signInButton").disabled = true;
+      }
+    })();
+  </script>
+</body>
+</html>
