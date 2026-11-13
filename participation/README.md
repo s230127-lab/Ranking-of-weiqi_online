@@ -33,11 +33,11 @@ Google Form 的「收集電子郵件地址」需要設定為「已驗證」。�
 
 ## 設定網站
 
-開啟 index.html，找到：
+開啟 index.html，找到以下兩個設定：
 
     const APPS_SCRIPT_URL = "PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE";
 
-將字串替換成剛才複製的 Apps Script /exec 網址，提交變更。
+將字串替換成剛才複製的 Apps Script /exec 網址。另找到 GOOGLE_FORM_URL，填入真正的 Google Form 填寫連結（不是回應試算表連結），提交變更。
 
 ## 發布 GitHub Pages
 
