@@ -73,7 +73,7 @@
   </style>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-functions-compat.js"></script>
 </head>
 <body>
   <main class="shell">
@@ -164,9 +164,6 @@
         measurementId: "G-J5J6K8H61M"
       };
 
-      // Deploy participation/Code.gs as a Google Apps Script web app,
-      // then paste its /exec URL here.
-      const APPS_SCRIPT_URL = "PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE";
       const GOOGLE_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSfT6YJEJDFkvivKx9vGhTvSP2bw59M9WOTFTSglo0F_uwGTYg/viewform?usp=publish-editor";
 
       const $ = id => document.getElementById(id);
@@ -179,7 +176,7 @@
       const formBadge = $("formBadge");
       const finalBadge = $("finalBadge");
       let auth = null;
-      let db = null;
+      let functions = null;
       let currentUser = null;
       let checking = false;
 
@@ -217,117 +214,57 @@
         }
       }
 
-      function checkFormWithAppsScript(idToken) {
-        return new Promise((resolve, reject) => {
-          if (!APPS_SCRIPT_URL.startsWith("https://script.google.com/macros/s/") ||
-              !APPS_SCRIPT_URL.endsWith("/exec")) {
-            reject(new Error("form_service_not_configured"));
-            return;
-          }
-
-          const script = document.createElement("script");
-          script.referrerPolicy = "no-referrer";
-          let finished = false;
-          const timeout = window.setTimeout(() => finish(new Error("form_check_timeout")), 18000);
-
-          function cleanup() {
-            window.clearTimeout(timeout);
-            script.remove();
-            try { delete window.weiqiFormCheck; } catch (_) { window.weiqiFormCheck = undefined; }
-          }
-
-          function finish(error, result) {
-            if (finished) return;
-            finished = true;
-            cleanup();
-            if (error) reject(error);
-            else resolve(result);
-          }
-
-          window.weiqiFormCheck = result => finish(null, result);
-          script.onerror = () => finish(new Error("form_service_unavailable"));
-
-          const url = new URL(APPS_SCRIPT_URL);
-          url.searchParams.set("token", idToken);
-          url.searchParams.set("callback", "weiqiFormCheck");
-          url.searchParams.set("_", String(Date.now()));
-          script.src = url.toString();
-          document.head.appendChild(script);
-        });
-      }
-
       async function refreshStatus() {
-        if (!currentUser || checking) return;
+        if (!currentUser || checking || !functions) return;
         checking = true;
         $("refreshButton").disabled = true;
-        setMessage("正在核對 Firebase 遊戲紀錄及 Google 表單提交狀態…");
+        setMessage("正在透過 Firebase Cloud Function 核對遊戲紀錄及 Google 表單提交狀態…");
         setBadge(gameBadge, "核對中", "wait");
         setBadge(formBadge, "核對中", "wait");
-
-        let gameDone = false;
-        let formDone = false;
+        setBadge(finalBadge, "核對中", "wait");
 
         try {
-          const playerRef = db.collection("leaderboard").doc(currentUser.uid);
-          const playerSnapshot = await playerRef.get();
-          const playerData = playerSnapshot.exists ? playerSnapshot.data() : {};
-          const games = Math.max(0, Number(playerData.games || 0));
-          gameDone = Number.isFinite(games) && games >= 1;
+          const verifyParticipation = functions.httpsCallable("checkParticipation");
+          const response = await verifyParticipation({});
+          const data = response && response.data ? response.data : {};
+          const games = Math.max(0, Number(data.games || 0));
+          const gameDone = data.gameCompleted === true && games >= 1;
+          const formDone = data.formSubmitted === true;
 
           $("gameDetail").textContent = "已記錄完成對局：" + games + " 盤。";
           setBadge(gameBadge, gameDone ? "已完成" : "未完成", gameDone ? "done" : "issue");
-        } catch (error) {
-          console.error("Game record check failed:", error);
-          $("gameDetail").textContent = "無法讀取遊戲紀錄。請確認網路連線，稍後再試。";
-          setBadge(gameBadge, "讀取失敗", "fail");
-        }
 
-        try {
-          if (!currentUser.email || !currentUser.emailVerified) {
-            throw new Error("google_email_not_verified");
-          }
-          const idToken = await currentUser.getIdToken();
-          const result = await checkFormWithAppsScript(idToken);
-
-          if (!result || result.ok !== true) {
-            const code = result && result.error ? result.error : "unknown";
-            if (code === "email_column_missing") {
-              throw new Error("email_column_missing");
-            }
-            if (code === "spreadsheet_unavailable") {
-              throw new Error("spreadsheet_unavailable");
-            }
-            if (code === "auth_invalid") {
-              throw new Error("auth_invalid");
-            }
-            throw new Error("form_check_failed");
-          }
-
-          formDone = result.submitted === true;
           $("formDetail").textContent = formDone
             ? "已在回應試算表找到此 Google 帳戶的電子郵件。"
             : "尚未找到此 Google 帳戶的提交紀錄。請確認使用同一個 Google 帳戶填表。";
           setBadge(formBadge, formDone ? "已提交" : "未提交", formDone ? "done" : "issue");
-        } catch (error) {
-          console.error("Form response check failed:", error);
-          const messages = {
-            form_service_not_configured: "問卷核對服務尚未設定，請管理員完成 Apps Script 部署。",
-            form_service_unavailable: "無法連接問卷核對服務，請稍後再試。",
-            form_check_timeout: "問卷核對逾時，請稍後再試。",
-            email_column_missing: "試算表找不到電子郵件欄。請確認已啟用「收集電子郵件地址」，並檢查新回應是否包含電子郵件欄。",
-            spreadsheet_unavailable: "無法讀取回應試算表。請確認 Apps Script 部署帳戶有試算表檢視權限。",
-            auth_invalid: "登入驗證失效，請重新登入後再試。",
-            google_email_not_verified: "目前 Google 帳戶沒有可驗證的電子郵件地址。",
-            form_check_failed: "問卷核對失敗，請稍後再試。"
-          };
-          $("formDetail").textContent = messages[error.message] || messages.form_check_failed;
-          setBadge(formBadge, "無法核對", "fail");
-        }
 
-        setFinalState(gameDone, formDone);
-        setMessage("核對完成。狀態以目前 Firebase 及表單回應資料為準。");
-        checking = false;
-        $("refreshButton").disabled = false;
+          setFinalState(gameDone, formDone);
+          setMessage("核對完成。狀態以 Firebase 及表單回應試算表的最新資料為準。");
+        } catch (error) {
+          console.error("Participation verification failed:", error);
+          const code = error && error.code ? error.code : "unknown";
+          const serverMessage = error && error.message ? error.message : "";
+          const messageByCode = {
+            "functions/unauthenticated": "登入狀態已失效，請重新登入。",
+            "functions/failed-precondition": serverMessage || "目前無法核對，請確認表單已收集已驗證的電子郵件地址。",
+            "functions/permission-denied": serverMessage || "核對服務沒有檢視回應試算表的權限，請聯絡學校管理員。",
+            "functions/not-found": serverMessage || "找不到指定的回應試算表或工作表。",
+            "functions/unavailable": serverMessage || "核對服務暫時無法使用，請稍後再試。"
+          };
+          const message = messageByCode[code] || "核對失敗，請稍後再試。如持續發生，請聯絡網站管理員。";
+          $("gameDetail").textContent = "本次未能完成伺服器核對。";
+          $("formDetail").textContent = message;
+          setBadge(gameBadge, "無法核對", "fail");
+          setBadge(formBadge, "無法核對", "fail");
+          setBadge(finalBadge, "無法核對", "fail");
+          $("finalTitle").textContent = "暫時無法確認完成狀態";
+          $("finalDetail").textContent = message;
+          setMessage(message);
+        } finally {
+          checking = false;
+          $("refreshButton").disabled = !currentUser;
+        }
       }
 
       async function signIn() {
@@ -382,7 +319,7 @@
         if (!window.firebase) throw new Error("Firebase SDK 載入失敗。");
         if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
         auth = firebase.auth();
-        db = firebase.firestore();
+        functions = firebase.functions("us-central1");
         $("signInButton").addEventListener("click", signIn);
         $("signOutButton").addEventListener("click", signOut);
         $("refreshButton").addEventListener("click", refreshStatus);
