@@ -226,6 +226,7 @@
           }
 
           const script = document.createElement("script");
+          script.referrerPolicy = "no-referrer";
           let finished = false;
           const timeout = window.setTimeout(() => finish(new Error("form_check_timeout")), 18000);
 
