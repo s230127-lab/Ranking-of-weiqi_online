@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="zh-HK">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#eceae4">
+  <meta name="description" content="圍棋參與紀錄及問卷提交確認">
+  <title>圍棋參與確認</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg:#eceae4; --panel:#f8f6f0; --paper:#fffdf7; --ink:#242820;
+      --muted:#72766b; --line:#d8d3c7; --green:#315f50;
+      --green-soft:#e6efe9; --amber:#8b641e; --amber-soft:#f6eedb;
+      --red:#91483e; --red-soft:#f6e9e6; --shadow:0 20px 55px rgba(38,42,32,.09);
+    }
+    * { box-sizing:border-box; }
+    body {
+      margin:0; min-height:100vh; padding:24px 16px 40px;
+      background:radial-gradient(circle at 12% 0%,rgba(210,190,145,.2),transparent 28rem),var(--bg);
+      color:var(--ink);
+      font-family:"Noto Serif TC","Songti TC","PMingLiU","Noto Serif CJK TC",Georgia,serif;
+    }
+    button,input,textarea { font:inherit; }
+    button { cursor:pointer; }
+    button:disabled { cursor:wait; opacity:.62; }
+    .shell { width:min(100%,790px); margin:0 auto; }
+    header { display:flex; align-items:flex-start; justify-content:space-between; gap:18px; margin:18px 0 28px; }
+    .eyebrow { margin:0 0 10px; color:var(--green); font:800 .73rem/1.4 system-ui,sans-serif; letter-spacing:.17em; }
+    h1 { margin:0; font-size:clamp(2rem,6vw,3.2rem); line-height:1.12; letter-spacing:.025em; }
+    .subtitle { margin:12px 0 0; color:var(--muted); line-height:1.7; }
+    .mark { display:grid; place-items:center; width:56px; height:56px; flex:none; border:1px solid var(--line); border-radius:15px; background:var(--panel); color:var(--green); font-size:1.5rem; font-weight:800; box-shadow:var(--shadow); }
+    .card { margin:16px 0; padding:clamp(18px,4vw,27px); background:var(--paper); border:1px solid var(--line); border-radius:19px; box-shadow:var(--shadow); }
+    .account { display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; }
+    .account-copy { min-width:200px; flex:1; }
+    .section-kicker { margin:0 0 7px; color:var(--muted); font:800 .72rem system-ui,sans-serif; letter-spacing:.12em; }
+    h2 { margin:0; font-size:1.25rem; }
+    .account-email { margin:7px 0 0; color:var(--muted); font-size:.9rem; overflow-wrap:anywhere; }
+    .actions { display:flex; gap:8px; flex-wrap:wrap; }
+    .button { display:inline-flex; align-items:center; justify-content:center; min-height:43px; padding:9px 16px; border:1px solid var(--line); border-radius:999px; background:var(--panel); color:var(--ink); font-weight:700; text-decoration:none; transition:transform .16s ease,border-color .16s ease; }
+    .button:hover:not(:disabled) { transform:translateY(-1px); border-color:#9eaa9e; }
+    .button.primary { background:var(--green); border-color:var(--green); color:white; }
+    .button.subtle { background:transparent; }
+    .message { min-height:1.5em; margin:12px 2px 0; color:var(--muted); font-size:.84rem; line-height:1.6; }
+    .status-list { display:grid; gap:12px; margin-top:19px; }
+    .status-row { display:grid; grid-template-columns:42px minmax(0,1fr) auto; align-items:center; gap:13px; padding:15px; background:var(--panel); border:1px solid var(--line); border-radius:13px; }
+    .status-icon { display:grid; place-items:center; width:39px; height:39px; border-radius:12px; background:#efeee8; color:var(--muted); font:800 1.05rem system-ui,sans-serif; }
+    .status-row h3 { margin:0; font-size:1rem; }
+    .status-row p { margin:5px 0 0; color:var(--muted); font-size:.84rem; line-height:1.5; }
+    .pill { display:inline-flex; align-items:center; justify-content:center; min-width:76px; padding:7px 10px; border-radius:999px; font:750 .76rem system-ui,sans-serif; white-space:nowrap; }
+    .pill.wait { background:#eeede7; color:#6d7068; }
+    .pill.done { background:var(--green-soft); color:var(--green); }
+    .pill.issue { background:var(--amber-soft); color:var(--amber); }
+    .pill.fail { background:var(--red-soft); color:var(--red); }
+    .final { display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; margin-top:19px; padding:17px 18px; border:1px solid var(--line); border-radius:13px; background:#f5f3ec; }
+    .final h3 { margin:0; font-size:1.03rem; }
+    .final p { margin:5px 0 0; color:var(--muted); font-size:.85rem; line-height:1.5; }
+    .field-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:19px; }
+    .field { display:grid; gap:7px; }
+    .field.full { grid-column:1/-1; }
+    label { font-weight:700; font-size:.92rem; }
+    input,textarea { width:100%; min-height:45px; border:1px solid var(--line); border-radius:11px; background:#fffefa; color:var(--ink); padding:11px 12px; outline:none; }
+    textarea { min-height:112px; resize:vertical; line-height:1.65; }
+    input:focus,textarea:focus { border-color:var(--green); box-shadow:0 0 0 3px rgba(49,95,80,.11); }
+    .hint { margin:0; color:var(--muted); font-size:.81rem; line-height:1.5; }
+    .question-list { display:grid; gap:17px; margin-top:20px; }
+    .question { padding-top:16px; border-top:1px solid var(--line); }
+    .question label { display:block; margin-bottom:8px; }
+    .notice { margin-top:16px; padding:13px 15px; border:1px solid #e7d9b7; border-radius:12px; background:var(--amber-soft); color:#75551d; font: .83rem/1.65 system-ui,sans-serif; }
+    .help { margin-top:17px; padding-top:15px; border-top:1px solid var(--line); color:var(--muted); font-size:.83rem; line-height:1.7; }
+    .help strong { color:var(--ink); }
+    footer { margin:22px 0 0; text-align:center; color:#898d82; font-size:.76rem; line-height:1.6; }
+    [hidden] { display:none !important; }
+    @media(max-width:540px) {
+      body { padding:12px 11px 30px; }
+      header { margin-top:12px; }
+      .mark { width:46px; height:46px; }
+      .status-row { grid-template-columns:38px minmax(0,1fr); }
+      .status-row .pill { grid-column:2; justify-self:start; }
+      .status-icon { width:36px; height:36px; }
+      .actions { width:100%; }
+      .actions .button { flex:1; }
+      .field-grid { grid-template-columns:1fr; }
+      .field.full { grid-column:auto; }
+    }
+    @media(prefers-reduced-motion:reduce) { *,*::before,*::after { transition:none !important; animation:none !important; } }
+  </style>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-functions-compat.js"></script>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div>
+        <p class="eyebrow">WEIQI ONLINE · 參與紀錄</p>
+        <h1>圍棋參與確認</h1>
+        <p class="subtitle">使用 Google 帳戶登入，完成問卷並核對圍棋對局紀錄。</p>
+      </div>
+      <div class="mark" aria-hidden="true">圍</div>
+    </header>
+
+    <section class="card" aria-labelledby="accountTitle">
+      <div class="account">
+        <div class="account-copy">
+          <p class="section-kicker">玩家帳戶</p>
+          <h2 id="accountTitle">使用 Google 帳戶登入</h2>
+          <p class="account-email" id="accountEmail">登入後會顯示目前核對的帳戶。</p>
+        </div>
+        <div class="actions">
+          <button class="button primary" id="signInButton" type="button">Google 登入</button>
+          <button class="button subtle" id="signOutButton" type="button" hidden>登出</button>
+        </div>
+      </div>
+      <p class="message" id="pageMessage" role="status" aria-live="polite">請使用你在 weiqi_online 遊戲中使用的 Google 帳戶登入。</p>
+    </section>
+
+    <section class="card" aria-labelledby="statusTitle">
+      <p class="section-kicker">完成狀態</p>
+      <h2 id="statusTitle">參與條件核對</h2>
+      <div class="status-list">
+        <article class="status-row">
+          <div class="status-icon" aria-hidden="true">棋</div>
+          <div>
+            <h3>完成至少一盤圍棋</h3>
+            <p id="gameDetail">登入後會讀取你的 Firebase 遊戲紀錄。</p>
+          </div>
+          <span class="pill wait" id="gameBadge">待核對</span>
+        </article>
+        <article class="status-row">
+          <div class="status-icon" aria-hidden="true">表</div>
+          <div>
+            <h3>提交網站問卷</h3>
+            <p id="formDetail">登入後會核對你的問卷提交狀態。</p>
+          </div>
+          <span class="pill wait" id="formBadge">待核對</span>
+        </article>
+      </div>
+      <div class="final">
+        <div>
+          <h3 id="finalTitle">尚未完成核對</h3>
+          <p id="finalDetail">登入後會自動檢查以上兩項條件。</p>
+        </div>
+        <span class="pill wait" id="finalBadge">未完成</span>
+      </div>
+      <div class="actions" style="margin-top:16px">
+        <button class="button primary" id="refreshButton" type="button" disabled>重新核對</button>
+      </div>
+      <div class="help">
+        <strong>核對方式</strong><br>
+        系統只會讀取你自己的圍棋對局數，以及你是否提交問卷。問卷答案不會在公開排行榜或其他玩家的頁面顯示。
+      </div>
+    </section>
+
+    <section class="card" id="questionnaireCard" aria-labelledby="questionnaireTitle" hidden>
+      <p class="section-kicker">網站內置問卷</p>
+      <h2 id="questionnaireTitle">參與問卷</h2>
+      <p class="subtitle">請填寫班級、班號及以下五題。所有欄位均須填寫，提交後會與你的登入帳戶連結。</p>
+      <div class="notice">
+        問卷目前先以「第 1 題」至「第 5 題」作為欄位名稱。正式開放前，管理員須按實際問卷內容修改五題的題目文字；目前答案欄均為文字輸入。
+      </div>
+      <form id="questionnaireForm">
+        <div class="field-grid">
+          <div class="field">
+            <label for="className">班級</label>
+            <input id="className" name="className" maxlength="40" autocomplete="off" required placeholder="例如：中一甲">
+          </div>
+          <div class="field">
+            <label for="studentNumber">班號</label>
+            <input id="studentNumber" name="studentNumber" maxlength="30" autocomplete="off" required placeholder="請輸入班號">
+          </div>
+        </div>
+        <div class="question-list" id="questionFields"></div>
+        <div class="actions" style="margin-top:20px">
+          <button class="button primary" id="submitButton" type="submit">提交問卷</button>
+        </div>
+        <p class="message" id="formMessage" role="status" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <footer>
+      圍棋參與紀錄系統 · 適用於電腦、平板及手機<br>
+      如剛完成一盤棋，請按「重新核對」更新狀態。
+    </footer>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const FIREBASE_CONFIG = {
+        apiKey: "AIzaSyBOcBPN-D8S-4LJ6LwzGcBV-N4CI60bdzI",
+        authDomain: "weiqi-online.firebaseapp.com",
+        projectId: "weiqi-online",
+        storageBucket: "weiqi-online.firebasestorage.app",
+        messagingSenderId: "950011884276",
+        appId: "1:950011884276:web:2241c6311e1ee79b1424a1",
+        measurementId: "G-J5J6K8H61M"
+      };
+
+      // 管理員可在正式開放前，按實際問卷內容修改這五個題目名稱。
+      const QUESTIONS = [
+        { id: "q1", title: "第 1 題", placeholder: "請填寫第 1 題答案。" },
+        { id: "q2", title: "第 2 題", placeholder: "請填寫第 2 題答案。" },
+        { id: "q3", title: "第 3 題", placeholder: "請填寫第 3 題答案。" },
+        { id: "q4", title: "第 4 題", placeholder: "請填寫第 4 題答案。" },
+        { id: "q5", title: "第 5 題", placeholder: "請填寫第 5 題答案。" }
+      ];
+
+      const $ = id => document.getElementById(id);
+      const gameBadge = $("gameBadge");
+      const formBadge = $("formBadge");
+      const finalBadge = $("finalBadge");
+      let auth = null;
+      let functions = null;
+      let currentUser = null;
+      let checking = false;
+      let submitting = false;
+      let alreadySubmitted = false;
+
+      function renderQuestions() {
+        const container = $("questionFields");
+        for (const question of QUESTIONS) {
+          const wrapper = document.createElement("div");
+          wrapper.className = "field question";
+
+          const label = document.createElement("label");
+          label.htmlFor = question.id;
+          label.textContent = question.title;
+
+          const answer = document.createElement("textarea");
+          answer.id = question.id;
+          answer.name = question.id;
+          answer.maxLength = 2000;
+          answer.required = true;
+          answer.placeholder = question.placeholder;
+
+          wrapper.append(label, answer);
+          container.appendChild(wrapper);
+        }
+      }
+
+      function setBadge(element, label, state) {
+        element.textContent = label;
+        element.className = "pill " + state;
+      }
+
+      function setMessage(message) {
+        $("pageMessage").textContent = message;
+      }
+
+      function resetChecks() {
+        setBadge(gameBadge, "待核對", "wait");
+        setBadge(formBadge, "待核對", "wait");
+        setBadge(finalBadge, "未完成", "wait");
+        $("gameDetail").textContent = "登入後會讀取你的 Firebase 遊戲紀錄。";
+        $("formDetail").textContent = "登入後會核對你的問卷提交狀態。";
+        $("finalTitle").textContent = "尚未完成核對";
+        $("finalDetail").textContent = "登入後會自動檢查以上兩項條件。";
+        $("questionnaireCard").hidden = true;
+        $("questionnaireForm").reset();
+        $("formMessage").textContent = "";
+        alreadySubmitted = false;
+      }
+
+      function setFinalState(gameDone, formDone) {
+        if (gameDone && formDone) {
+          $("finalTitle").textContent = "恭喜，兩項條件均已完成";
+          $("finalDetail").textContent = "你的圍棋參與紀錄已符合完成資格。";
+          setBadge(finalBadge, "已完成", "done");
+        } else {
+          $("finalTitle").textContent = "尚未符合完成資格";
+          const missing = [];
+          if (!gameDone) missing.push("完成至少一盤圍棋");
+          if (!formDone) missing.push("提交網站問卷");
+          $("finalDetail").textContent = "尚欠：" + missing.join("、") + "。";
+          setBadge(finalBadge, "未完成", "issue");
+        }
+      }
+
+      async function refreshStatus() {
+        if (!currentUser || checking || !functions) return;
+        checking = true;
+        $("refreshButton").disabled = true;
+        setMessage("正在核對你的圍棋紀錄及問卷狀態…");
+        setBadge(gameBadge, "核對中", "wait");
+        setBadge(formBadge, "核對中", "wait");
+        setBadge(finalBadge, "核對中", "wait");
+
+        try {
+          const response = await functions.httpsCallable("checkParticipation")({});
+          const data = response && response.data ? response.data : {};
+          const games = Math.max(0, Number(data.games || 0));
+          const gameDone = data.gameCompleted === true && games >= 1;
+          const formDone = data.formSubmitted === true;
+
+          $("gameDetail").textContent = "已記錄完成對局：" + games + " 盤。";
+          setBadge(gameBadge, gameDone ? "已完成" : "未完成", gameDone ? "done" : "issue");
+
+          $("formDetail").textContent = formDone
+            ? "已找到此登入帳戶的問卷提交紀錄。"
+            : "尚未找到提交紀錄。請完成下方網站問卷。";
+          setBadge(formBadge, formDone ? "已提交" : "未提交", formDone ? "done" : "issue");
+
+          alreadySubmitted = formDone;
+          $("questionnaireCard").hidden = formDone;
+          if (formDone) {
+            $("formMessage").textContent = "你的問卷已成功提交。如需更正資料，請聯絡網站管理員。";
+          }
+          setFinalState(gameDone, formDone);
+          setMessage("核對完成。資料來自 Firebase 的最新紀錄。");
+        } catch (error) {
+          console.error("Participation verification failed:", error);
+          const code = error && error.code ? error.code : "unknown";
+          const serverMessage = error && error.message ? error.message : "";
+          const messageByCode = {
+            "functions/unauthenticated": "登入狀態已失效，請重新登入。",
+            "functions/failed-precondition": serverMessage || "目前無法核對，請檢查 Firebase 設定。",
+            "functions/permission-denied": serverMessage || "核對服務沒有足夠權限，請聯絡網站管理員。",
+            "functions/unavailable": serverMessage || "核對服務暫時無法使用，請稍後再試。"
+          };
+          const message = messageByCode[code] || "核對失敗，請稍後再試。如持續發生，請聯絡網站管理員。";
+          $("gameDetail").textContent = "本次未能完成伺服器核對。";
+          $("formDetail").textContent = message;
+          setBadge(gameBadge, "無法核對", "fail");
+          setBadge(formBadge, "無法核對", "fail");
+          setBadge(finalBadge, "無法核對", "fail");
+          $("finalTitle").textContent = "暫時無法確認完成狀態";
+          $("finalDetail").textContent = message;
+          setMessage(message);
+        } finally {
+          checking = false;
+          $("refreshButton").disabled = !currentUser;
+        }
+      }
+
+      async function signIn() {
+        if (!auth) {
+          setMessage("Firebase 尚未載入，請重新整理頁面。");
+          return;
+        }
+        $("signInButton").disabled = true;
+        try {
+          const provider = new firebase.auth.GoogleAuthProvider();
+          provider.setCustomParameters({ prompt: "select_account" });
+          await auth.signInWithPopup(provider);
+        } catch (error) {
+          console.error("Google sign-in failed:", error);
+          const code = error && error.code ? error.code : "unknown";
+          const hint = code === "auth/unauthorized-domain"
+            ? "此網站網域尚未加入 Firebase Authentication 的授權網域。"
+            : code === "auth/popup-blocked"
+              ? "瀏覽器封鎖了登入視窗，請允許此網站開啟彈出式視窗。"
+              : "Google 登入失敗，請再試一次。";
+          setMessage(hint + "（" + code + "）");
+        } finally {
+          $("signInButton").disabled = false;
+        }
+      }
+
+      async function submitQuestionnaire(event) {
+        event.preventDefault();
+        if (!currentUser || submitting || alreadySubmitted) return;
+
+        const form = $("questionnaireForm");
+        if (!form.reportValidity()) return;
+
+        const answers = {};
+        for (const question of QUESTIONS) {
+          answers[question.id] = $(question.id).value.trim();
+        }
+
+        const payload = {
+          className: $("className").value.trim(),
+          studentNumber: $("studentNumber").value.trim(),
+          answers
+        };
+
+        submitting = true;
+        $("submitButton").disabled = true;
+        $("formMessage").textContent = "正在安全提交問卷…";
+
+        try {
+          await functions.httpsCallable("submitQuestionnaire")(payload);
+          $("formMessage").textContent = "問卷已成功提交，正在更新完成狀態…";
+          await refreshStatus();
+        } catch (error) {
+          console.error("Questionnaire submission failed:", error);
+          const code = error && error.code ? error.code : "unknown";
+          const message = code === "functions/already-exists"
+            ? "此帳戶已提交問卷。請按「重新核對」更新狀態。"
+            : code === "functions/unauthenticated"
+              ? "登入狀態已失效，請重新登入後再提交。"
+              : (error && error.message) || "提交失敗，請檢查網絡連線後再試。";
+          $("formMessage").textContent = message;
+          setMessage(message);
+        } finally {
+          submitting = false;
+          $("submitButton").disabled = alreadySubmitted;
+        }
+      }
+
+      async function signOut() {
+        if (auth) await auth.signOut();
+      }
+
+      function handleAuthState(user) {
+        currentUser = user || null;
+        $("signInButton").hidden = !!user;
+        $("signOutButton").hidden = !user;
+        $("refreshButton").disabled = !user;
+
+        if (!user) {
+          $("accountTitle").textContent = "使用 Google 帳戶登入";
+          $("accountEmail").textContent = "登入後會顯示目前核對的帳戶。";
+          resetChecks();
+          setMessage("請使用你在 weiqi_online 遊戲中使用的 Google 帳戶登入。");
+          return;
+        }
+
+        $("accountTitle").textContent = user.displayName || "已登入";
+        $("accountEmail").textContent = user.email || "此帳戶沒有可顯示的電子郵件地址。";
+        refreshStatus();
+      }
+
+      renderQuestions();
+      try {
+        if (!window.firebase) throw new Error("Firebase SDK 載入失敗。");
+        if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+        auth = firebase.auth();
+        functions = firebase.functions("us-central1");
+        $("signInButton").addEventListener("click", signIn);
+        $("signOutButton").addEventListener("click", signOut);
+        $("refreshButton").addEventListener("click", refreshStatus);
+        $("questionnaireForm").addEventListener("submit", submitQuestionnaire);
+        auth.onAuthStateChanged(handleAuthState);
+      } catch (error) {
+        console.error("Initialization failed:", error);
+        setMessage("網站初始化失敗：" + (error.message || String(error)));
+        $("signInButton").disabled = true;
+      }
+    })();
+  </script>
+</body>
+</html>
