@@ -1,122 +1,122 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { initializeApp } = require("firebase-admin/app");
-const { getFirestore } = require("firebase-admin/firestore");
-const { google } = require("googleapis");
+const { getFirestore, FieldValue } = require("firebase-admin/firestore");
 
 initializeApp();
 
 const db = getFirestore();
+const REGION = "us-central1";
+const QUESTION_IDS = ["q1", "q2", "q3", "q4", "q5"];
 
-const SPREADSHEET_ID = "15NVX-qvZ1GvV552uNoLZLxlh1DUDv7R03f6i4anwQDg";
-const SHEET_NAME = "Form_Responses";
-const SHEETS_SCOPE = "https://www.googleapis.com/auth/spreadsheets.readonly";
-
-const auth = new google.auth.GoogleAuth({
-  scopes: [SHEETS_SCOPE],
-});
-
-const sheets = google.sheets({ version: "v4", auth });
-
-function quoteSheetName(name) {
-  return "'" + String(name).replace(/'/g, "''") + "'";
-}
-
-function columnToLetter(zeroBasedIndex) {
-  let value = zeroBasedIndex + 1;
-  let result = "";
-  while (value > 0) {
-    const remainder = (value - 1) % 26;
-    result = String.fromCharCode(65 + remainder) + result;
-    value = Math.floor((value - 1) / 26);
+function requireVerifiedUser(request) {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "請先使用 Google 帳戶登入。");
   }
-  return result;
-}
 
-function normalizeEmail(value) {
-  return String(value || "").trim().toLowerCase();
-}
-
-function findEmailColumn(headers) {
-  const accepted = new Set([
-    "email",
-    "emailaddress",
-    "verifiedemail",
-    "電子郵件",
-    "電子郵件地址",
-    "電郵",
-    "電郵地址",
-  ]);
-
-  return headers.findIndex((header) => {
-    const normalized = String(header || "")
-      .toLowerCase()
-      .replace(/[\s_\-()（）]/g, "");
-    return accepted.has(normalized);
-  });
-}
-
-async function hasFormSubmission(email) {
-  const sheetPrefix = quoteSheetName(SHEET_NAME);
-  const headerResponse = await sheets.spreadsheets.values.get({
-    spreadsheetId: SPREADSHEET_ID,
-    range: sheetPrefix + "!1:1",
-    majorDimension: "ROWS",
-  });
-
-  const headers = (headerResponse.data.values && headerResponse.data.values[0]) || [];
-  const emailIndex = findEmailColumn(headers);
-
-  if (emailIndex < 0) {
+  if (request.auth.token.email_verified !== true) {
     throw new HttpsError(
       "failed-precondition",
-      "找不到表單電子郵件欄位。請確認 Google Form 已啟用「收集電子郵件地址（已驗證）」，並確認回應工作表標題列包含 Email Address 欄位。"
+      "請使用已驗證電子郵件地址的 Google 帳戶登入。"
     );
   }
 
-  const emailColumn = columnToLetter(emailIndex);
-  const emailResponse = await sheets.spreadsheets.values.get({
-    spreadsheetId: SPREADSHEET_ID,
-    range: sheetPrefix + "!" + emailColumn + "2:" + emailColumn,
-    majorDimension: "COLUMNS",
-  });
-
-  const submittedEmails = (emailResponse.data.values && emailResponse.data.values[0]) || [];
-  const normalizedTarget = normalizeEmail(email);
-  return submittedEmails.some((candidate) => normalizeEmail(candidate) === normalizedTarget);
+  return request.auth.uid;
 }
 
-exports.checkParticipation = onCall(
+function cleanText(value, fieldName, maxLength) {
+  if (typeof value !== "string") {
+    throw new HttpsError("invalid-argument", fieldName + "格式不正確。");
+  }
+
+  const cleaned = value.trim();
+  if (!cleaned || cleaned.length > maxLength) {
+    throw new HttpsError(
+      "invalid-argument",
+      fieldName + "不可留空，並且不可超過 " + maxLength + " 個字元。"
+    );
+  }
+
+  return cleaned;
+}
+
+exports.submitQuestionnaire = onCall(
   {
-    region: "us-central1",
+    region: REGION,
     timeoutSeconds: 30,
     memory: "256MiB",
     maxInstances: 10,
   },
   async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "請先使用 Google 帳戶登入。");
+    const uid = requireVerifiedUser(request);
+    const data = request.data || {};
+
+    const className = cleanText(data.className, "班級", 40);
+    const studentNumber = cleanText(data.studentNumber, "班號", 30);
+
+    if (!data.answers || typeof data.answers !== "object" || Array.isArray(data.answers)) {
+      throw new HttpsError("invalid-argument", "請填寫全部五題答案。");
     }
 
-    const email = request.auth.token.email;
-    if (typeof email !== "string" || request.auth.token.email_verified !== true) {
-      throw new HttpsError(
-        "failed-precondition",
-        "目前登入帳戶沒有已驗證的電子郵件地址。請使用已驗證的 Google 帳戶登入。"
+    const answers = {};
+    for (const questionId of QUESTION_IDS) {
+      answers[questionId] = cleanText(
+        data.answers[questionId],
+        "第 " + questionId.slice(1) + " 題",
+        2000
       );
     }
 
-    try {
-      const playerRef = db.collection("leaderboard").doc(request.auth.uid);
-      const playerSnapshot = await playerRef.get();
-      const playerData = playerSnapshot.exists ? playerSnapshot.data() : {};
-      const games = Math.max(0, Number(playerData.games || 0));
-      const safeGames = Number.isFinite(games) ? games : 0;
-      const gameCompleted = safeGames >= 1;
+    const questionnaireRef = db.collection("participationQuestionnaires").doc(uid);
 
-      const formSubmitted = await hasFormSubmission(email);
+    await db.runTransaction(async (transaction) => {
+      const existing = await transaction.get(questionnaireRef);
+      if (existing.exists) {
+        throw new HttpsError(
+          "already-exists",
+          "此 Google 帳戶已提交問卷。如需更正，請聯絡網站管理員。"
+        );
+      }
+
+      transaction.create(questionnaireRef, {
+        uid,
+        className,
+        studentNumber,
+        answers,
+        schemaVersion: 1,
+        submittedAt: FieldValue.serverTimestamp(),
+      });
+    });
+
+    return { submitted: true };
+  }
+);
+
+exports.checkParticipation = onCall(
+  {
+    region: REGION,
+    timeoutSeconds: 30,
+    memory: "256MiB",
+    maxInstances: 10,
+  },
+  async (request) => {
+    const uid = requireVerifiedUser(request);
+
+    try {
+      const playerRef = db.collection("leaderboard").doc(uid);
+      const questionnaireRef = db.collection("participationQuestionnaires").doc(uid);
+      const [playerSnapshot, questionnaireSnapshot] = await Promise.all([
+        playerRef.get(),
+        questionnaireRef.get(),
+      ]);
+
+      const playerData = playerSnapshot.exists ? playerSnapshot.data() : {};
+      const rawGames = Number(playerData.games || 0);
+      const games = Number.isFinite(rawGames) ? Math.max(0, rawGames) : 0;
+      const gameCompleted = games >= 1;
+      const formSubmitted = questionnaireSnapshot.exists;
 
       return {
-        games: safeGames,
+        games,
         gameCompleted,
         formSubmitted,
         completed: gameCompleted && formSubmitted,
@@ -124,29 +124,7 @@ exports.checkParticipation = onCall(
     } catch (error) {
       if (error instanceof HttpsError) throw error;
 
-      const status = Number(
-        error && (error.code || (error.response && error.response.status))
-      );
-
-      console.error("Participation verification failed", {
-        status: Number.isFinite(status) ? status : "unknown",
-        message: error && error.message ? error.message : "Unknown error",
-      });
-
-      if (status === 403 || status === 7) {
-        throw new HttpsError(
-          "permission-denied",
-          "Firebase Cloud Function 的服務帳戶沒有檢視這份回應試算表的權限。請由表單擁有者或學校管理員授權。"
-        );
-      }
-
-      if (status === 404 || status === 5) {
-        throw new HttpsError(
-          "not-found",
-          "找不到指定試算表或回應工作表。請管理員檢查試算表 ID 及工作表名稱。"
-        );
-      }
-
+      console.error("Participation verification failed:", error);
       throw new HttpsError(
         "unavailable",
         "暫時無法完成核對。請稍後再試；如持續發生，請聯絡網站管理員。"
