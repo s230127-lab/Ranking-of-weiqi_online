@@ -135,7 +135,7 @@
 
       <div class="actions" style="margin-top:16px">
         <button class="button primary" id="refreshButton" type="button" disabled>重新核對</button>
-        <a class="button" href="https://docs.google.com/forms/" target="_blank" rel="noopener noreferrer">開啟 Google 表單</a>
+        <a class="button" id="formLink" href="#" target="_blank" rel="noopener noreferrer" hidden>開啟 Google 表單</a>
       </div>
 
       <div class="help">
@@ -167,8 +167,14 @@
       // Deploy participation/Code.gs as a Google Apps Script web app,
       // then paste its /exec URL here.
       const APPS_SCRIPT_URL = "PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE";
+      const GOOGLE_FORM_URL = "PASTE_YOUR_GOOGLE_FORM_URL_HERE";
 
       const $ = id => document.getElementById(id);
+      const formLink = $("formLink");
+      if (GOOGLE_FORM_URL.startsWith("https://docs.google.com/forms/") && GOOGLE_FORM_URL.includes("/viewform")) {
+        formLink.href = GOOGLE_FORM_URL;
+        formLink.hidden = false;
+      }
       const gameBadge = $("gameBadge");
       const formBadge = $("formBadge");
       const finalBadge = $("finalBadge");
